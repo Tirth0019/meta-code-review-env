@@ -1,12 +1,25 @@
-# 🔍 CodeReviewEnv — OpenEnv Pull Request Review Environment
+---
+title: Code Review Env
+emoji: 🔍
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+license: mit
+tags:
+  - openenv
+---
+
+
+ CodeReviewEnv — OpenEnv Pull Request Review Environment
 
 An OpenEnv-compliant environment where an AI agent acts as a **code reviewer**, evaluating pull requests to identify bugs, security vulnerabilities, style issues, and logic errors.
 
-## 🌍 Real-World Motivation
+##  Real-World Motivation
 
 Code review is one of the most critical and time-consuming tasks in software engineering. This environment trains and evaluates agents on their ability to perform meaningful, structured code review — a task that directly maps to developer productivity tooling.
 
-## 🧠 Tasks
+## Tasks
 
 | Task ID | Difficulty | Description |
 |---|---|---|
@@ -14,7 +27,7 @@ Code review is one of the most critical and time-consuming tasks in software eng
 | `medium_security_review` | Medium | PR with SQL injection vulnerability + pagination logic bug |
 | `hard_concurrency_review` | Hard | Complex PR with race conditions, bare exceptions, misleading names |
 
-## 📡 Action Space
+## Action Space
 
 ```json
 {
@@ -24,7 +37,7 @@ Code review is one of the most critical and time-consuming tasks in software eng
 }
 ```
 
-## 👁️ Observation Space
+##  Observation Space
 
 ```json
 {
@@ -38,7 +51,7 @@ Code review is one of the most critical and time-consuming tasks in software eng
 }
 ```
 
-## 🏆 Reward Function
+##  Reward Function
 
 Rewards are shaped across multiple dimensions per task:
 - **Issue detection** (did the agent find the key bug/vulnerability?)
@@ -47,7 +60,7 @@ Rewards are shaped across multiple dimensions per task:
 
 All rewards are in range `[0.0, 1.0]` with partial credit for partial detection.
 
-## ⚙️ Setup & Usage
+##  Setup & Usage
 
 ### Local
 
@@ -73,7 +86,7 @@ export ENV_URL=http://localhost:7860
 python inference.py
 ```
 
-## 📊 Baseline Scores
+##  Baseline Scores
 
 | Task | Model | Score |
 |---|---|---|
@@ -86,7 +99,7 @@ python inference.py
 | hard_concurrency_review | llama-3.3-70b-versatile | 0.80 |
 | **Average** | | **0.82** |
 
-## 🗂️ Project Structure
+## Project Structure
 
 ```
 code-review-env/
