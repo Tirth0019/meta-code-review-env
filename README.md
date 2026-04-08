@@ -81,6 +81,10 @@ python inference.py
 | medium_security_review | gpt-4o-mini | 0.70 |
 | hard_concurrency_review | gpt-4o-mini | 0.45 |
 | **Average** | | **0.65** |
+| easy_bug_detection | llama-3.3-70b-versatile | 1.00 |
+| medium_security_review | llama-3.3-70b-versatile | 0.65 |
+| hard_concurrency_review | llama-3.3-70b-versatile | 0.80 |
+| **Average** | | **0.82** |
 
 ## 🗂️ Project Structure
 
