@@ -1,4 +1,3 @@
-# Baseline inference script
 import os
 import json
 import time
@@ -43,13 +42,20 @@ def call_env(method: str, endpoint: str, body: dict = None):
         headers={"Content-Type": "application/json"},
         method=method,
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return json.loads(resp.read())
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read())
+    except Exception as e:
+        print(json.dumps({"type": "[ERROR]", "source": "call_env", "endpoint": endpoint, "error": str(e)}))
+        raise  # re-raise so run_task can catch it
 
 
 def run_task(task_id: str) -> float:
-    # Reset environment for this task
-    obs = call_env("POST", "/reset", {"task_id": task_id})
+    try:
+        obs = call_env("POST", "/reset", {"task_id": task_id})
+    except Exception as e:
+        print(json.dumps({"type": "[ERROR]", "task_id": task_id, "phase": "reset", "error": str(e)}))
+        return 0.0
 
     task_score = 0.0
     step_num = 0
@@ -58,14 +64,13 @@ def run_task(task_id: str) -> float:
     print(json.dumps({
         "type": "[START]",
         "task_id": task_id,
-        "pr_title": obs["pr_title"],
+        "pr_title": obs.get("pr_title", ""),
         "timestamp": time.time(),
     }))
 
     while not done:
         step_num += 1
 
-        # Build prompt from observation
         user_prompt = f"""PR Title: {obs['pr_title']}
 PR Description: {obs['pr_description']}
 Files Changed: {', '.join(obs['file_names'])}
@@ -75,36 +80,43 @@ Code Diff:
 
 Review this pull request thoroughly and return your JSON response."""
 
-        # Call LLM
-        response = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.0,
-            max_tokens=800,
-        )
-
-        raw_content = response.choices[0].message.content.strip()
-
-        # Parse LLM response
+        # ── FIX: wrap LLM call in try/except ──────────────────────────────
         try:
-            # Strip markdown fences if present
+            response = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.0,
+                max_tokens=800,
+            )
+            raw_content = response.choices[0].message.content.strip()
+        except Exception as e:
+            print(json.dumps({"type": "[ERROR]", "task_id": task_id, "step": step_num, "phase": "llm_call", "error": str(e)}))
+            raw_content = ""
+        # ──────────────────────────────────────────────────────────────────
+
+        try:
             if "```" in raw_content:
                 raw_content = raw_content.split("```")[1]
                 if raw_content.startswith("json"):
                     raw_content = raw_content[4:]
             action_dict = json.loads(raw_content)
-        except Exception as e:
+        except Exception:
             action_dict = {
                 "review_comments": ["Unable to parse response"],
                 "verdict": "request_changes",
                 "severity_flags": [],
             }
 
-        # Send action to environment
-        step_result = call_env("POST", "/step", action_dict)
+        # ── FIX: wrap /step call in try/except ────────────────────────────
+        try:
+            step_result = call_env("POST", "/step", action_dict)
+        except Exception as e:
+            print(json.dumps({"type": "[ERROR]", "task_id": task_id, "step": step_num, "phase": "env_step", "error": str(e)}))
+            break
+        # ──────────────────────────────────────────────────────────────────
 
         reward = step_result["reward"]
         task_score = reward["score"]
