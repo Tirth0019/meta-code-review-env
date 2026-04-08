@@ -1,0 +1,46 @@
+# OpenEnv metadata
+name: code-review-env
+version: "1.0.0"
+description: >
+  An OpenEnv environment where an AI agent acts as a code reviewer.
+  The agent evaluates pull requests and must identify bugs, security
+  vulnerabilities, style issues, and provide actionable feedback.
+author: "Yash Patel"
+tags:
+  - code-review
+  - software-engineering
+  - real-world
+  - openenv
+tasks:
+  - id: easy_bug_detection
+    name: "Easy: Basic Bug Detection"
+    description: "Review a single-file PR with one obvious bug."
+    difficulty: easy
+    max_steps: 5
+  - id: medium_security_review
+    name: "Medium: Security & Logic Review"
+    description: "Review a PR containing a logic error and a SQL injection vulnerability."
+    difficulty: medium
+    max_steps: 5
+  - id: hard_concurrency_review
+    name: "Hard: Concurrency & Error Handling Review"
+    description: "Review a complex PR with a race condition, poor error handling, and misleading variable names."
+    difficulty: hard
+    max_steps: 5
+observation_space:
+  type: object
+  fields:
+    pr_title: string
+    pr_description: string
+    code_diff: string
+    file_names: list[string]
+    task_id: string
+    step_number: integer
+    max_steps: integer
+action_space:
+  type: object
+  fields:
+    review_comments: list[string]
+    verdict: "enum: approve | request_changes | reject"
+    severity_flags: "list of enum: bug | security | style | performance | logic"
+reward_range: [0.0, 1.0]
