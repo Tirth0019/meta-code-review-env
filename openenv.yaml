@@ -1,16 +1,16 @@
-# OpenEnv metadata
 name: code-review-env
 version: "1.0.0"
 description: >
   An OpenEnv environment where an AI agent acts as a code reviewer.
   The agent evaluates pull requests and must identify bugs, security
   vulnerabilities, style issues, and provide actionable feedback.
-author: "Yash Patel"
+author: "Tirth Patel"
 tags:
   - code-review
   - software-engineering
   - real-world
   - openenv
+entry_point: "server.app:main"
 tasks:
   - id: easy_bug_detection
     name: "Easy: Basic Bug Detection"
@@ -33,14 +33,14 @@ observation_space:
     pr_title: string
     pr_description: string
     code_diff: string
-    file_names: list[string]
+    file_names: list
     task_id: string
     step_number: integer
     max_steps: integer
 action_space:
   type: object
   fields:
-    review_comments: list[string]
-    verdict: "enum: approve | request_changes | reject"
-    severity_flags: "list of enum: bug | security | style | performance | logic"
+    review_comments: list
+    verdict: string
+    severity_flags: list
 reward_range: [0.0, 1.0]

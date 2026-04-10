@@ -1,16 +1,13 @@
-# Grading logic
 from app.models import Action, Reward
 from app.tasks import TASKS
 
 
 def _keyword_hit(text: str, keywords: list[str]) -> bool:
-    """Check if any keyword appears in the lowercased text."""
     text_lower = text.lower()
     return any(kw.lower() in text_lower for kw in keywords)
 
 
 def _comments_hit(comments: list[str], keywords: list[str]) -> bool:
-    """Check if any comment mentions any keyword."""
     combined = " ".join(comments).lower()
     return any(kw.lower() in combined for kw in keywords)
 
@@ -62,7 +59,7 @@ def grade_medium(action: Action) -> Reward:
     if sql_found:
         score += 0.35
 
-    # 2. Pagination bug found (25 pts)
+    # 2. Pagination bug found (25 pts) - expanded keywords
     bug_found = _comments_hit(action.review_comments, expected["bugs"])
     breakdown["pagination_bug_found"] = bug_found
     if bug_found:
@@ -116,13 +113,18 @@ def grade_hard(action: Action) -> Reward:
     if style_found or logic_found:
         score += 0.15
 
-    # 4. Correct verdict: reject (20 pts)
-    correct_verdict = action.verdict.value == expected["verdict"]
-    breakdown["correct_verdict"] = correct_verdict
-    if correct_verdict:
+    # 4. Verdict: reject = full 20pts, request_changes = partial 10pts
+    verdict_val = action.verdict.value
+    if verdict_val == "reject":
+        breakdown["correct_verdict"] = True
         score += 0.20
+    elif verdict_val == "request_changes":
+        breakdown["correct_verdict"] = "partial"
+        score += 0.10
+    else:
+        breakdown["correct_verdict"] = False
 
-    # 5. Required flags: bug + logic (15 pts)
+    # 5. Required flags: bug + logic (15 pts, 7.5 each)
     flags = [f.value for f in action.severity_flags]
     has_bug = "bug" in flags
     has_logic = "logic" in flags
@@ -135,7 +137,7 @@ def grade_hard(action: Action) -> Reward:
 
     feedback = (
         f"Race condition: {race_found}, Exception handling: {except_found}, "
-        f"Style/logic: {style_found or logic_found}, Verdict: {correct_verdict}, "
+        f"Style/logic: {style_found or logic_found}, Verdict: {verdict_val}, "
         f"Bug flag: {has_bug}, Logic flag: {has_logic}"
     )
     return Reward(score=round(min(score, 1.0), 4), breakdown=breakdown, feedback=feedback)

@@ -17,8 +17,13 @@ dependencies = [
     "python-multipart==0.0.9",
     "openenv-core>=0.2.0",
 ]
+
 [project.scripts]
 server = "server.app:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
+include = ["app*", "server*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml", "*.yml", "*.json"]
