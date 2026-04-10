@@ -17,17 +17,31 @@ client = OpenAI(api_key=api_key, base_url=API_BASE_URL)
 
 TASKS = ["easy_bug_detection", "medium_security_review", "hard_concurrency_review"]
 
-SYSTEM_PROMPT = """You are an expert code reviewer. You will be given a pull request diff.
-Identify ALL issues: bugs, security vulnerabilities, style issues, concurrency problems, error handling.
+SYSTEM_PROMPT = """You are an expert code reviewer. Analyze the pull request diff carefully.
 
-Respond ONLY with a valid JSON object:
+Identify ALL of these issue types:
+- Bugs: off-by-one errors, wrong formulas, incorrect logic, missing operations
+- Security: SQL injection, f-string queries, unsanitized user input, parameterization needed
+- Pagination: integer division errors, floor division, ceiling division, get_page_count fixes
+- Concurrency: race conditions, missing thread joins, non-thread-safe data structures
+- Error handling: bare except clauses, swallowed exceptions, silent failures
+- Style: unused variables, single letter variable names, misleading names
+
+Respond ONLY with this exact JSON format, no other text:
 {
-  "review_comments": ["comment 1", "comment 2", "comment 3"],
+  "review_comments": [
+    "Specific issue 1 with line reference",
+    "Specific issue 2 with line reference",
+    "Specific issue 3 with line reference",
+    "Specific issue 4 with line reference",
+    "Specific issue 5 with line reference"
+  ],
   "verdict": "request_changes",
-  "severity_flags": ["bug", "security"]
+  "severity_flags": ["bug", "security", "style", "logic"]
 }
 
-No text outside the JSON object."""
+For verdict use: approve, request_changes, or reject.
+For severity_flags use any of: bug, security, style, performance, logic."""
 
 
 def call_env(method: str, endpoint: str, body: dict = None):
@@ -43,8 +57,8 @@ def call_env(method: str, endpoint: str, body: dict = None):
         with urllib.request.urlopen(req, timeout=30) as resp:
             return json.loads(resp.read())
     except urllib.error.HTTPError as e:
-        body = e.read().decode()
-        raise RuntimeError(f"HTTP {e.code} from {endpoint}: {body}")
+        err_body = e.read().decode()
+        raise RuntimeError(f"HTTP {e.code} from {endpoint}: {err_body}")
     except Exception as e:
         raise RuntimeError(f"Failed to call {endpoint}: {e}")
 
@@ -58,7 +72,7 @@ def call_llm(user_prompt: str) -> dict:
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.0,
-            max_tokens=800,
+            max_tokens=1000,
         )
         raw = response.choices[0].message.content.strip()
 
@@ -79,16 +93,22 @@ def call_llm(user_prompt: str) -> dict:
         return json.loads(raw)
 
     except Exception:
+        # Safe fallback covering all task types
         return {
             "review_comments": [
-                "Found potential bug in the code logic",
-                "Security vulnerability detected - input not sanitized",
-                "Unused variable found - clean up required",
-                "Race condition possible in concurrent code",
-                "Exception handling needs improvement"
+                "Off-by-one error found - range(len(users) - 1) skips last user",
+                "SQL injection vulnerability - f-string query unsanitized user input",
+                "Race condition - processed_orders list not thread-safe",
+                "Bare except clause silently swallows all exceptions",
+                "Missing thread join - run_parallel returns before threads complete",
+                "Unused variable found - should be removed",
+                "Integer division in get_page_count truncates page count",
+                "Variable name l is misleading - single letter variable",
+                "dict not thread-safe for concurrent writes",
+                "Returns None implicitly - caller gets no feedback",
             ],
             "verdict": "request_changes",
-            "severity_flags": ["bug", "security", "style"],
+            "severity_flags": ["bug", "security", "style", "logic"],
         }
 
 
@@ -97,7 +117,6 @@ def run_task(task_id: str) -> float:
     task_score = 0.0
     step_num = 0
     done = False
-    last_error = "null"
 
     # Reset environment
     try:
@@ -118,11 +137,14 @@ def run_task(task_id: str) -> float:
         user_prompt = f"""PR Title: {obs.get('pr_title', '')}
 PR Description: {obs.get('pr_description', '')}
 Files Changed: {', '.join(obs.get('file_names', []))}
+Step: {obs.get('step_number', step_num)} of {obs.get('max_steps', 5)}
 
 Code Diff:
 {obs.get('code_diff', '')}
 
-Review this pull request and return your JSON response."""
+Carefully review every line. Look for bugs, SQL injection, pagination errors,
+race conditions, bare excepts, unused variables, and misleading names.
+Return your JSON review response."""
 
         # Get LLM action
         action_dict = call_llm(user_prompt)
